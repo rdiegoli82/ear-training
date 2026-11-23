@@ -43,14 +43,40 @@ ol{padding-left:20px;margin:6px 0}li{margin:4px 0}
 </head>
 <body>
 <h1>Ear Jazz Auto</h1>
-<div class="ver">Prototipo 4 · prova di microfono, canto e voce</div>
+<div class="ver">Prototipo 5 · prova di microfono, canto e voce</div>
 <nav>
- <button data-t="ex" aria-selected="true">Esercizi cantati</button>
+ <button data-t="vo" aria-selected="true">Rispondi a voce</button>
+ <button data-t="vt">Test vocabolario</button>
+ <button data-t="ex">Esercizi cantati</button>
  <button data-t="tu">Test microfono</button>
  <button data-t="cm">Comandi vocali</button>
 </nav>
 
-<section id="ex" class="on">
+<section id="vo" class="on">
+ <p class="small" id="voinfo"></p>
+ <button id="vogo" class="go">AVVIA</button>
+ <div class="mid" id="vost">Premi Avvia: da lì in poi è tutto a voce.</div>
+ <div class="mid" id="voheard" style="font-size:18px;color:var(--mut)"></div>
+ <div class="card stats"><div><b id="vq">0</b>domande</div><div><b id="vg">0</b>giuste</div><div><b id="vn">0</b>non capite</div></div>
+ <div class="card">
+  <label for="vox">Esercizio</label>
+  <select id="vox"><option value="ch">Accordi</option><option value="sc">Scale</option><option value="mix">Misto</option></select>
+  <label for="vol">Livello</label>
+  <select id="vol"><option value="1">Base</option><option value="2">Base + intermedio</option><option value="3">Tutto</option></select>
+  <label class="chk"><input type="checkbox" id="voarp" checked> Accordi: dopo il plaqué suona anche l'arpeggio</label>
+  <p class="small">Dopo il bip rispondi a voce. Comandi: “ripeti”, “non lo so”, “opzioni” (rielenca le risposte), “più lento”, “basta”.</p>
+ </div>
+ <div class="card"><b>Possibili risposte</b><p class="small" id="voopts"></p></div>
+ <div class="card"><b>Ultimi risultati</b><ol id="volog" class="small"></ol></div>
+</section>
+
+<section id="vt">
+ <button id="vtgo" class="go">DI' UN TERMINE</button>
+ <div class="mid" id="vtst"></div>
+ <div class="card"><p class="small">Prova i nomi delle risposte (“semidiminuito”, “misolidia”, “minore maggiore”, “lidia dominante”…) e vedi cosa capisce il telefono e a quale risposta lo collega. Provalo anche in macchina, con il rumore della strada.</p><ol id="vtlog" class="small"></ol></div>
+</section>
+
+<section id="ex">
  <button id="exgo" class="go">AVVIA</button>
  <div class="mid" id="exst">Premi Avvia: da lì in poi è tutto a voce.</div>
  <div class="big" id="exnote">–</div>
@@ -277,6 +303,103 @@ $('#cmgo').onclick=async()=>{if(!SR){$('#cmst').textContent='Il riconoscimento d
  const alts=await hear(3500,tr),c=cmdOf(alts);
  $('#cmst').innerHTML=alts?(c?`<span class="y">Comando: ${c}</span>`:'<span class="n">Nessun comando riconosciuto</span>'):'<span class="n">Non ho sentito nulla</span>';
  };
+
+
+/* ---- risposte a voce ---- */
+const VCH=[
+['maj7','maggiore settima',[0,4,7,11],1,['maggiore settima','settima maggiore','maggiore sette','sette maggiore','major seven','major sette','maj sette','delta']],
+['m7','minore settima',[0,3,7,10],1,['minore settima','minore sette','meno sette','minor seven','minore']],
+['7','settima di dominante',[0,4,7,10],1,['dominante','settima di dominante','sette','settima','dominant']],
+['m7b5','semidiminuito',[0,3,6,10],1,['semidiminuito','semidiminuita','semi diminuito','mezzo diminuito','half diminished','minore sette bemolle cinque','minore settima quinta bemolle','minore sette quinta bemolle']],
+['6','maggiore sesta',[0,4,7,9],2,['maggiore sesta','sesta','maggiore sei','sei']],
+['m6','minore sesta',[0,3,7,9],2,['minore sesta','minore sei','meno sei']],
+['mmaj7','minore maggiore settima',[0,3,7,11],2,['minore maggiore','minore settima maggiore','minore maggiore settima','minor major','minore major']],
+['dim7','diminuito',[0,3,6,9],2,['diminuito','diminuita','settima diminuita','dim']],
+['7sus4','sette sus',[0,5,7,10],2,['sus','sospeso','sospesa','sus quattro','sette sus','sus four']],
+['maj7s5','maggiore settima quinta aumentata',[0,4,8,11],2,['aumentato','aumentata','quinta aumentata','diesis cinque','cinque diesis']],
+['9','nona di dominante',[0,4,7,10,14],3,['nona','nove','dominante nona','sette nove','nona di dominante']],
+['7b9','settima nona bemolle',[0,4,7,10,13],3,['nona bemolle','nove bemolle','bemolle nove','sette bemolle nove']],
+['7s9','settima nona diesis',[0,4,7,10,15],3,['nona diesis','nove diesis','diesis nove','sette diesis nove','hendrix']],
+['7alt','settima alterata',[0,4,10,15,20],3,['alterato','alterata','alt','sette alt','settima alterata']],
+['13','tredicesima',[0,4,10,14,21],3,['tredicesima','tredici','sette tredici']]
+].map(([id,name,iv,lvl,syn])=>({id,name,iv,lvl,syn}));
+const VSC=[
+['ion','ionica',[0,2,4,5,7,9,11],1,['ionica','ionico','maggiore','scala maggiore']],
+['dor','dorica',[0,2,3,5,7,9,10],1,['dorica','dorico']],
+['mix','misolidia',[0,2,4,5,7,9,10],1,['misolidia','misolidio','mixolidia','mixolidio','miso lidia','miso lidio']],
+['lyd','lidia',[0,2,4,6,7,9,11],1,['lidia','lidio']],
+['aeo','eolia',[0,2,3,5,7,8,10],1,['eolia','eolio','minore naturale','minore']],
+['phr','frigia',[0,1,3,5,7,8,10],2,['frigia','frigio']],
+['loc','locria',[0,1,3,5,6,8,10],2,['locria','locrio']],
+['mel','minore melodica',[0,2,3,5,7,9,11],2,['minore melodica','melodica','melodico']],
+['har','minore armonica',[0,2,3,5,7,8,11],2,['minore armonica','armonica','armonico']],
+['blu','blues',[0,3,5,6,7,10],2,['blues','blu']],
+['pM','pentatonica maggiore',[0,2,4,7,9],2,['pentatonica maggiore']],
+['pm','pentatonica minore',[0,3,5,7,10],2,['pentatonica minore']],
+['lyddom','lidia dominante',[0,2,4,6,7,9,10],3,['lidia dominante','lidio dominante','lidia bemolle sette','lidia settima']],
+['alt','alterata',[0,1,3,4,6,8,10],3,['alterata','alterato','superlocria','super locria','superlocrio']],
+['loc2','locria naturale due',[0,2,3,5,6,8,10],3,['locria naturale','locria due','locria nove','locria bequadro']],
+['phrdom','frigia dominante',[0,1,4,5,7,8,10],3,['frigia dominante','frigio dominante','spagnola','quinto modo']],
+['dimHW','diminuita semitono tono',[0,1,3,4,6,7,9,10],3,['semitono tono','diminuita semitono','dominante diminuita']],
+['dimWH','diminuita tono semitono',[0,2,3,5,6,8,9,11],3,['tono semitono','diminuita tono']],
+['wt','esatonale',[0,2,4,6,8,10],3,['esatonale','tono intero','toni interi','whole tone','esa tonale']],
+['bebD','bebop dominante',[0,2,4,5,7,9,10,11],3,['bebop dominante','bebop','bi bop']]
+].map(([id,name,iv,lvl,syn])=>({id,name,iv,lvl,syn}));
+const NUMW={'0':'zero','1':'uno','2':'due','3':'tre','4':'quattro','5':'cinque','6':'sei','7':'sette','9':'nove','11':'undici','13':'tredici'};
+const norm=t=>t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/♭/g,' bemolle ').replace(/♯|#/g,' diesis ')
+ .replace(/\d+/g,d=>' '+(NUMW[d]||d)+' ').replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();
+const flat=t=>t.replace(/ /g,'');
+function matchItem(alts,L){let best=null,bl=0;for(const a of alts||[]){const f=flat(norm(a));
+ for(const it of L)for(const s of it.syn){const fs=flat(s);if(f.includes(fs)&&fs.length>bl){bl=fs.length;best=it}}}return best}
+function voCmd(alts){if(!alts)return null;const t=alts.map(norm).join(' | ');
+ if(/ripet|ancora una volta|risentire/.test(t))return'ripeti';if(/non lo so|non so|boh|dimmelo/.test(t))return'nonso';
+ if(/\bbasta\b|\bstop\b|fermati/.test(t))return'basta';if(/lent/.test(t))return'lento';if(/opzion|elenco|quali sono|risposte possibili/.test(t))return'opzioni';return null}
+const pool=k=>(k==='ch'?VCH:VSC).filter(i=>i.lvl<=+$('#vol').value);
+function voOptsText(k){return pool(k).map(i=>i.name).join(', ')}
+function renderOpts(){const k=$('#vox').value;$('#voopts').innerHTML=(k!=='sc'?'<b>Accordi:</b> '+voOptsText('ch')+'<br>':'')+(k!=='ch'?'<b>Scale:</b> '+voOptsText('sc'):'')}
+$('#vox').onchange=renderOpts;$('#vol').onchange=renderOpts;renderOpts();
+let VRUN=false,vcnt={q:0,g:0,n:0},vslow=1;
+function vlog(h){const li=document.createElement('li');li.innerHTML=h;const L=$('#volog');L.prepend(li);while(L.children.length>14)L.lastChild.remove()}
+function vupd(){$('#vq').textContent=vcnt.q;$('#vg').textContent=vcnt.g;$('#vn').textContent=vcnt.n}
+function voQ(){let k=$('#vox').value;if(k==='mix')k=Math.random()<.5?'ch':'sc';const L=pool(k),it=L[rnd(0,L.length-1)];
+ return{k,it,root:k==='ch'?rnd(48,57):rnd(55,62)}}
+async function voPlay(k,it,root){if(k==='ch'){const n=[root-12,...it.iv.map(x=>root+x)];await play(n,2.2*vslow);
+  if($('#voarp').checked){const t=AC.currentTime+.05,st=.28*vslow;n.forEach((m,i)=>note(m,t+i*st,(n.length-i)*st+.6));await sleep((n.length*st+.9)*1000)}}
+ else{const n=[...it.iv.map(x=>root+x),root+12],st=.34*vslow,t=AC.currentTime+.05;n.forEach((m,i)=>note(m,t+i*st,st*1.05));await sleep((n.length*st+.9)*1000)}}
+const kname=k=>k==='ch'?'accordo':'scala';
+async function voLoop(){let q=voQ(),first=true,again=false,miss=0;
+ while(VRUN){
+  if(first){const k=$('#vox').value;await say((k==='sc'?'Scale.':k==='ch'?'Accordi.':'Accordi e scale.')+' Dopo il bip dimmi cosa hai sentito. Puoi dire ripeti, non lo so, opzioni o basta.');first=false}
+  if(!VRUN)break;
+  if(!again){$('#vost').textContent='Ascolta…';await voPlay(q.k,q.it,q.root)}again=false;if(!VRUN)break;
+  await beep();$('#vost').textContent='Dimmi la risposta';$('#voheard').textContent='';
+  const alts=await hear(5000,s=>{$('#voheard').textContent=s});if(!VRUN)break;
+  const heard=alts&&alts.length&&!/^\(/.test(alts[0])?alts[0]:'';$('#voheard').textContent=heard?'ho sentito: “'+heard+'”':'non ho sentito nulla';
+  const c=voCmd(alts);
+  if(c==='basta'){await say('Va bene, mi fermo.');voStop();break}
+  if(c==='ripeti'){await say('Ripeto.');continue}
+  if(c==='lento'){vslow=Math.min(2,vslow+.3);await say('Più lento.');continue}
+  if(c==='opzioni'){await say('Le risposte sono: '+(q.k==='ch'?voOptsText('ch'):voOptsText('sc'))+'.');again=true;continue}
+  const L=q.k==='ch'?VCH:VSC,got=c==='nonso'?null:matchItem(alts,L);
+  if(!got&&c!=='nonso'){miss++;vlog(`<span class="n">non capito</span>: “${heard||'—'}”`);
+   if(miss<2){await say(heard?'Non ho capito. Ripeti la risposta.':'Non ti ho sentito. Ripeti la risposta.');again=true;continue}
+   vcnt.n++;vupd();await say('Non ho capito. Era '+q.it.name+'.');miss=0;q=voQ();await sleep(500);continue}
+  miss=0;vcnt.q++;
+  if(got&&got.id===q.it.id){vcnt.g++;vupd();vlog(`<span class="y">giusto</span>: ${q.it.name}`);$('#vost').textContent='Giusto: '+q.it.name;await say('Giusto, '+q.it.name+'.')}
+  else{vupd();vlog(got?`<span class="n">no</span>: hai detto ${got.name}, era ${q.it.name}`:`non lo so: era ${q.it.name}`);
+   $('#vost').textContent='Era: '+q.it.name;
+   if(got){await say('Ho capito '+got.name+'. No, era '+q.it.name+'. Senti la differenza. Questa è '+got.name+'.');if(!VRUN)break;await voPlay(q.k,got,q.root);if(!VRUN)break;await say('E questa è '+q.it.name+'.');await voPlay(q.k,q.it,q.root)}
+   else{await say('Era '+q.it.name+'. Riascoltala.');if(!VRUN)break;await voPlay(q.k,q.it,q.root)}}
+  await sleep(600);q=voQ()}}
+function voStop(){VRUN=false;try{speechSynthesis.cancel()}catch(e){}$('#vogo').textContent='AVVIA';$('#vogo').classList.remove('stop');$('#vost').textContent='Fermo.'}
+$('#voinfo').innerHTML=STANDALONE?'<span class="n">Sei nell\'app aperta dall\'icona: qui iOS non permette il riconoscimento delle parole. Apri l\'indirizzo in Safari.</span>':SR?'':'<span class="n">Questo browser non riconosce le parole.</span>';
+$('#vogo').onclick=()=>{if(VRUN){voStop();return}if(!SR||STANDALONE){$('#vost').textContent='Apri l\'app in Safari per rispondere a voce.';return}
+ audio();try{speechSynthesis.speak(new SpeechSynthesisUtterance(''))}catch(e){}
+ VRUN=true;vslow=1;$('#vogo').textContent='STOP';$('#vogo').classList.add('stop');wake();voLoop()};
+$('#vtgo').onclick=async()=>{if(!SR){$('#vtst').textContent='Riconoscimento non disponibile.';return}$('#vtst').textContent='Parla ora…';
+ const alts=await hear(4000),a=matchItem(alts,VCH),b=matchItem(alts,VSC),c=voCmd(alts);
+ $('#vtst').textContent=alts&&alts.length?'“'+alts[0]+'”':'Non ho sentito nulla';
+ const li=document.createElement('li');const mm=[a&&'accordo: <b>'+a.name+'</b>',b&&'scala: <b>'+b.name+'</b>',c&&'comando: <b>'+c+'</b>'].filter(Boolean).join(' · ');li.innerHTML=(alts?alts.join(' / '):'(niente)')+' → '+(mm||'nessuna corrispondenza');$('#vtlog').prepend(li)};
 
 /* ---- schede ---- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
