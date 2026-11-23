@@ -43,7 +43,7 @@ ol{padding-left:20px;margin:6px 0}li{margin:4px 0}
 </head>
 <body>
 <h1>Ear Jazz Auto</h1>
-<div class="ver">Prototipo 1 · prova di microfono, canto e voce</div>
+<div class="ver">Prototipo 2 · prova di microfono, canto e voce</div>
 <nav>
  <button data-t="ex" aria-selected="true">Esercizi cantati</button>
  <button data-t="tu">Test microfono</button>
@@ -66,8 +66,15 @@ ol{padding-left:20px;margin:6px 0}li{margin:4px 0}
   </select>
   <label for="exsec">Tempo per cantare</label>
   <select id="exsec"><option value="3">3 secondi</option><option value="4" selected>4 secondi</option><option value="6">6 secondi</option></select>
-  <label class="chk"><input type="checkbox" id="excmd"> Dopo ogni risposta ascolta un comando a voce (sperimentale)</label>
-  <p class="small">Comandi: “ripeti”, “prossima”, “più lento”, “basta”.</p>
+  <label class="chk"><input type="checkbox" id="exrep" checked> Dopo ogni risposta, pausa per “ripeti”</label>
+  <p class="small">Per riascoltare non serve che il telefono capisca le parole. Se <b>parli</b> (per esempio “ripeti”) invece di cantare una nota tenuta, l'app risuona l'accordo e ti riascolta. Dopo la risposta c'è una breve pausa: se parli rifà la stessa domanda, se resti in silenzio passa alla prossima.</p>
+ </div>
+ <div class="card">
+  <b>Voce</b>
+  <label for="vsel">Voce italiana</label><select id="vsel"></select>
+  <label for="vrate">Velocità: <span id="vratev"></span></label><input id="vrate" type="range" min="0.55" max="1.1" step="0.05" style="width:100%">
+  <button id="vtest" class="btn" style="margin-top:10px">Prova la voce</button>
+  <p class="small">Per una voce più naturale scarica una voce “Avanzata” o “Premium”: Impostazioni → Accessibilità → Contenuto letto ad alta voce → Voci → Italiano (per esempio Alice, Federica o Luca). Poi riapri l'app e sceglila qui.</p>
  </div>
  <div class="card"><b>Ultimi risultati</b><ol id="log" class="small"></ol></div>
 </section>
@@ -88,7 +95,7 @@ ol{padding-left:20px;margin:6px 0}li{margin:4px 0}
 <section id="cm">
  <button id="cmgo" class="go">PROVA UN COMANDO</button>
  <div class="mid" id="cmst"></div>
- <div class="card"><p class="small">Premi e di' per esempio “ripeti”, “prossima”, “più lento” o “basta”. Qui vedi cosa ha capito il telefono. Il riconoscimento del parlato di solito passa dai server Apple, quindi serve la rete.</p>
+ <div class="card"><p class="small">Premi e di' per esempio “ripeti”, “prossima”, “più lento” o “basta”. Qui sotto vedi passo per passo cosa succede: serve a capire perché non funziona. Il riconoscimento del parlato di Safari passa dai server Apple e richiede la rete e la Dettatura attiva (Impostazioni → Generali → Tastiera → Abilita dettatura). Prova anche aprendo l'indirizzo in Safari invece che dall'icona.</p>
  <ol id="cmlog" class="small"></ol></div>
 </section>
 
@@ -139,20 +146,33 @@ const nameOf=m=>NOTE[pcl(Math.round(m))];
 function showPitch(m,elN,elM){if(m==null){elN.textContent='–';return}const c=Math.round((m-Math.round(m))*100);elN.textContent=nameOf(m);elM.style.left=(50+c)+'%'}
 
 /* ---- voce ---- */
-let VOICE=null;
-function pickVoice(){const v=speechSynthesis.getVoices();VOICE=v.find(x=>/^it/i.test(x.lang))||null}
-if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+let VOICE=null,PREF={};
+try{PREF=JSON.parse(localStorage.getItem('ejauto'))||{}}catch(e){}
+const savePref=()=>{try{localStorage.setItem('ejauto',JSON.stringify(PREF))}catch(e){}};
+if(!PREF.rate)PREF.rate=.85;
+function loadVoices(){if(!('speechSynthesis' in window))return;let v=speechSynthesis.getVoices().filter(x=>/^it/i.test(x.lang));
+ const s=$('#vsel');s.innerHTML=v.length?v.map(x=>`<option value="${x.name}">${x.name}${/enhanced|premium|avanzat/i.test(x.name+x.voiceURI)?' ★':''}</option>`).join(''):'<option>Voce di sistema</option>';
+ VOICE=v.find(x=>x.name===PREF.voice)||v.find(x=>/enhanced|premium/i.test(x.voiceURI))||v[0]||null;if(VOICE)s.value=VOICE.name}
+if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+$('#vrate').value=PREF.rate;$('#vratev').textContent=Math.round(PREF.rate*100)+'%';
+$('#vrate').oninput=()=>{PREF.rate=+$('#vrate').value;$('#vratev').textContent=Math.round(PREF.rate*100)+'%';savePref()};
+$('#vsel').onchange=()=>{PREF.voice=$('#vsel').value;savePref();loadVoices()};
+$('#vtest').onclick=()=>{try{speechSynthesis.cancel()}catch(e){}say('Canta la settima. Giusta, dodici centesimi calante.')};
 function say(text){return new Promise(res=>{if(!('speechSynthesis' in window)){res();return}
- const u=new SpeechSynthesisUtterance(text);u.lang='it-IT';if(VOICE)u.voice=VOICE;u.rate=1.02;
+ const u=new SpeechSynthesisUtterance(text);u.lang='it-IT';if(VOICE)u.voice=VOICE;u.rate=PREF.rate;
  let done=false;const fin=()=>{if(!done){done=true;setTimeout(res,150)}};u.onend=fin;u.onerror=fin;
- setTimeout(fin,1500+text.length*90);speechSynthesis.speak(u)})}
+ setTimeout(fin,1500+text.length*90/PREF.rate);speechSynthesis.speak(u)})}
 
 /* ---- comandi vocali ---- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function hear(ms){return new Promise(res=>{if(!SR){res(null);return}let r;try{r=new SR()}catch(e){res(null);return}
- r.lang='it-IT';r.interimResults=false;r.maxAlternatives=3;let out=null;
- r.onresult=e=>{out=[...e.results[0]].map(a=>a.transcript.toLowerCase())};r.onerror=e=>{out=out||['(errore: '+e.error+')']};r.onend=()=>res(out);
- try{r.start()}catch(e){res(null);return}setTimeout(()=>{try{r.stop()}catch(e){}},ms)})}
+function hear(ms,trace=()=>{}){return new Promise(res=>{if(!SR){trace('riconoscimento non presente in questo browser');res(null);return}let r;
+ try{r=new SR()}catch(e){trace('impossibile crearlo: '+e.message);res(null);return}
+ r.lang='it-IT';r.interimResults=false;r.maxAlternatives=3;let out=null,ended=false;
+ ['start','audiostart','soundstart','speechstart','speechend','nomatch'].forEach(k=>r['on'+k]=()=>trace(k));
+ r.onresult=e=>{out=[...e.results[0]].map(a=>a.transcript.toLowerCase());trace('risultato: '+out.join(' / '))};
+ r.onerror=e=>trace('errore: '+e.error);r.onend=()=>{trace('fine');if(!ended){ended=true;res(out)}};
+ try{r.start()}catch(e){trace('start fallito: '+e.message);res(null);return}
+ setTimeout(()=>{try{r.stop()}catch(e){}},ms);setTimeout(()=>{if(!ended){ended=true;trace('nessuna risposta dal riconoscimento');res(out)}},ms+2500)})}
 function cmdOf(alts){if(!alts)return null;const t=alts.join(' ');
  if(/ripet|ancora/.test(t))return'ripeti';if(/bast|stop|ferma|fine/.test(t))return'basta';if(/lent/.test(t))return'lento';if(/prossim|avanti|salta|vai/.test(t))return'prossima';return null}
 
@@ -166,22 +186,31 @@ function makeQ(){let ty=$('#extype').value;if(ty==='mix')ty=['3','7','1'][rnd(0,
  if(ty==='1'){qual=['maj7','m7','7'][rnd(0,2)];const base=pcl(root)+48;let n=RLA[qual].map(x=>base+x);while(n[0]>58)n=n.map(x=>x-12);while(n[0]<50)n=n.map(x=>x+12);notes=n;target=root}
  else{qual=ty==='3'?['maj7','m7','7','m7b5'][rnd(0,3)]:['maj7','m7','7'][rnd(0,2)];const b=36+root;notes=[b,b+12,...QUAL[qual].map(x=>b+12+x)];target=pcl(root+QUAL[qual][ty==='3'?0:2])}
  return{ty,root,qual,notes,target}}
-async function listen(sec){const fr=[],t0=performance.now();
- while(RUN&&performance.now()-t0<sec*1000){const s=sense();fr.push(s.p);showPitch(s.p,$('#exnote'),$('#exm'));
+let FLOOR=.01;
+async function floor(ms){const v=[],t0=performance.now();while(performance.now()-t0<ms){v.push(sense().lev);await sleep(30)}
+ v.sort((a,b)=>a-b);FLOOR=Math.max(.006,v[v.length>>1]||.01)}
+// Ritorna {seg} se hai cantato una nota tenuta, {talk:true} se hai parlato, {} se silenzio.
+async function listen(sec){const fr=[],t0=performance.now();let loud=0;const thr=Math.max(.02,FLOOR*3);
+ while(RUN&&performance.now()-t0<sec*1000){const s=sense();fr.push(s.p);if(s.lev>thr)loud++;showPitch(s.p,$('#exnote'),$('#exm'));
   const seg=best(fr);if(seg&&seg.len>=22)break;await sleep(30)}
- return best(fr)}
+ const seg=best(fr);return seg?{seg}:loud>=8?{talk:true}:{}}
+async function talkWindow(ms){const thr=Math.max(.02,FLOOR*3),t0=performance.now();let loud=0;
+ while(RUN&&performance.now()-t0<ms){if(sense().lev>thr&&++loud>=6)return true;await sleep(30)}return false}
 function best(fr){let bestSeg=null,cur=[];const flush=()=>{if(cur.length){const s=[...cur].sort((a,b)=>a-b),med=s[s.length>>1];if(!bestSeg||cur.length>bestSeg.len)bestSeg={len:cur.length,m:med}}cur=[]};
  for(const p of fr){if(p==null){flush();continue}if(cur.length&&Math.abs(p-cur[0])>.7)flush();cur.push(p)}flush();
  return bestSeg&&bestSeg.len>=10?bestSeg:null}
 function logLine(html){const li=document.createElement('li');li.innerHTML=html;const L=$('#log');L.prepend(li);while(L.children.length>12)L.lastChild.remove()}
 function upd(){$('#cq').textContent=cnt.q;$('#cg').textContent=cnt.g;$('#cn').textContent=cnt.n}
-async function exLoop(){let q=makeQ(),first=true;
+async function exLoop(){let q=makeQ(),first=true,again=false;
  while(RUN){
   $('#exst').textContent='Canta '+WHAT[q.ty];
-  await say((first?'Si parte. ':'')+'Canta '+WHAT[q.ty]+'.');first=false;if(!RUN)break;
+  if(first)await say('Si parte. Se vuoi riascoltare, invece di cantare di\' ripeti.');
+  if(!again)await say('Canta '+WHAT[q.ty]+'.');first=false;again=false;if(!RUN)break;
   await play(q.notes,2.2*slow);if(!RUN)break;
-  await beep();$('#exst').textContent='Ti ascolto…';
-  const seg=await listen(+$('#exsec').value);if(!RUN)break;
+  await floor(300);await beep();$('#exst').textContent='Ti ascolto…';
+  const res=await listen(+$('#exsec').value);if(!RUN)break;
+  if(res.talk){$('#exst').textContent='Ripeto';await say('Ripeto.');again=true;continue}
+  const seg=res.seg;
   cnt.q++;const tg=q.target;let fb,ok=false,cue;
   if(!seg){cnt.n++;fb='Non ho sentito una nota tenuta.';logLine(`<span class="n">non sentita</span> · ${WHAT[q.ty]} di ${NOTE[q.root]}${q.qual}`)}
   else{const m=seg.m,near=Math.round(m),pc=pcl(near);lastOct=near-pcl(near);
@@ -195,10 +224,8 @@ async function exLoop(){let q=makeQ(),first=true;
    let t=lastOct+tg;if(t<45)t+=12;if(t>67)t-=12;await play([t],1.4);await play([...q.notes,t],2)}
   if(!RUN)break;
   let next=true;
-  if($('#excmd').checked&&SR){$('#exst').textContent='Comando? (ripeti, prossima, più lento, basta)';const c=cmdOf(await hear(2500));
-   if(c==='basta'){await say('Va bene, mi fermo.');stopEx();break}
-   if(c==='ripeti'){next=false;await say('Ripeto.')}
-   if(c==='lento'){slow=Math.min(2,slow+.3);await say('Più lento.')}}
+  if($('#exrep').checked){await sleep(250);$('#exst').textContent='Parla per ripetere, silenzio per andare avanti';
+   if(await talkWindow(2200)){next=false;await say('Rifacciamo questa.')}}
   else await sleep(700);
   if(next)q=makeQ()}}
 async function wake(){try{if(navigator.wakeLock)window._wl=await navigator.wakeLock.request('screen')}catch(e){}}
@@ -222,9 +249,12 @@ $('#nsup').onchange=async()=>{const was=!!AN;micOff();if(was){try{await mic()}ca
 
 /* ---- test comandi ---- */
 $('#cmgo').onclick=async()=>{if(!SR){$('#cmst').textContent='Il riconoscimento del parlato non è disponibile qui.';return}
- $('#cmst').textContent='Parla ora…';const alts=await hear(3500),c=cmdOf(alts);
+ $('#cmst').textContent='Parla ora…';const steps=[],t0=performance.now();
+ const li0=document.createElement('li');$('#cmlog').prepend(li0);
+ const tr=s=>{steps.push(((performance.now()-t0)/1000).toFixed(1)+'s '+s);li0.textContent=steps.join(' → ')};
+ const alts=await hear(3500,tr),c=cmdOf(alts);
  $('#cmst').innerHTML=alts?(c?`<span class="y">Comando: ${c}</span>`:'<span class="n">Nessun comando riconosciuto</span>'):'<span class="n">Non ho sentito nulla</span>';
- const li=document.createElement('li');li.textContent=(alts?alts.join(' / '):'(niente)')+(c?' → '+c:'');$('#cmlog').prepend(li)};
+ };
 
 /* ---- schede ---- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
