@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ear Jazz">
+<meta name="theme-color" content="#2a46d6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Ear Jazz Auto</title>
+<style>
+:root{--bg:#0d1020;--card:#161b36;--ink:#eef0fa;--mut:#9aa2c4;--pri:#7088ff;--acc:#ff7a5f;--ok:#7088ff;--line:#2a3157}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 -apple-system,system-ui,sans-serif;
+ padding:env(safe-area-inset-top) max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+h1{font-size:22px;margin:14px 0 4px}.ver{color:var(--mut);font-size:13px}
+nav{display:flex;gap:6px;margin:12px 0 16px;overflow-x:auto}
+nav button{flex:1 0 auto;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:15px;padding:0 12px}
+nav button[aria-selected=true]{background:var(--pri);border-color:var(--pri);color:#fff}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.go{width:100%;min-height:96px;border-radius:20px;border:0;background:var(--pri);color:#fff;font:700 30px/1 -apple-system,system-ui,sans-serif;margin:6px 0 14px}
+.go.stop{background:var(--acc)}
+.btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;padding:0 16px}
+.big{font:700 clamp(56px,20vw,110px)/1 -apple-system,system-ui,sans-serif;text-align:center;margin:10px 0}
+.mid{font-size:24px;font-weight:600;text-align:center;min-height:1.5em}
+.small{color:var(--mut);font-size:14px}
+.meter{position:relative;height:18px;border-radius:9px;background:#0a0d1c;overflow:hidden;margin:10px 0}
+.meter i{position:absolute;top:0;bottom:0;width:6px;margin-left:-3px;background:var(--acc);border-radius:3px;left:50%}
+.meter b{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--mut)}
+.lev{height:10px;border-radius:5px;background:#0a0d1c;overflow:hidden}.lev span{display:block;height:100%;width:0;background:var(--pri)}
+label{display:block;margin:10px 0 4px;color:var(--mut);font-size:14px}
+select{width:100%;min-height:48px;border-radius:12px;border:1px solid var(--line);background:#0a0d1c;color:var(--ink);font:inherit;padding:0 10px}
+.chk{display:flex;gap:10px;align-items:center;color:var(--ink);font-size:16px;margin:12px 0}
+.chk input{width:22px;height:22px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stats b{display:block;font-size:28px}
+ol{padding-left:20px;margin:6px 0}li{margin:4px 0}
+.y{color:var(--pri)}.n{color:var(--acc)}
+</style>
+</head>
+<body>
+<h1>Ear Jazz Auto</h1>
+<div class="ver">Prototipo 1 · prova di microfono, canto e voce</div>
+<nav>
+ <button data-t="ex" aria-selected="true">Esercizi cantati</button>
+ <button data-t="tu">Test microfono</button>
+ <button data-t="cm">Comandi vocali</button>
+</nav>
+
+<section id="ex" class="on">
+ <button id="exgo" class="go">AVVIA</button>
+ <div class="mid" id="exst">Premi Avvia: da lì in poi è tutto a voce.</div>
+ <div class="big" id="exnote">–</div>
+ <div class="meter"><b></b><i id="exm"></i></div>
+ <div class="card stats"><div><b id="cq">0</b>domande</div><div><b id="cg">0</b>giuste</div><div><b id="cn">0</b>non sentite</div></div>
+ <div class="card">
+  <label for="extype">Esercizio</label>
+  <select id="extype">
+   <option value="mix">Misto</option>
+   <option value="3">Canta la terza dell'accordo</option>
+   <option value="7">Canta la settima dell'accordo</option>
+   <option value="1">Canta la fondamentale (voicing senza fondamentale)</option>
+  </select>
+  <label for="exsec">Tempo per cantare</label>
+  <select id="exsec"><option value="3">3 secondi</option><option value="4" selected>4 secondi</option><option value="6">6 secondi</option></select>
+  <label class="chk"><input type="checkbox" id="excmd"> Dopo ogni risposta ascolta un comando a voce (sperimentale)</label>
+  <p class="small">Comandi: “ripeti”, “prossima”, “più lento”, “basta”.</p>
+ </div>
+ <div class="card"><b>Ultimi risultati</b><ol id="log" class="small"></ol></div>
+</section>
+
+<section id="tu">
+ <button id="tugo" class="go">AVVIA MICROFONO</button>
+ <div class="big" id="tunote">–</div>
+ <div class="mid" id="tuc">canta una nota tenuta</div>
+ <div class="meter"><b></b><i id="tum"></i></div>
+ <label>Livello del microfono</label><div class="lev"><span id="tulev"></span></div>
+ <p class="small" id="tuhz"></p>
+ <div class="card">
+  <label class="chk"><input type="checkbox" id="nsup"> Usa la riduzione del rumore di iOS</label>
+  <p class="small">Prova con e senza: la riduzione del rumore toglie il rumore della strada ma a volte disturba il rilevamento della nota.</p>
+ </div>
+</section>
+
+<section id="cm">
+ <button id="cmgo" class="go">PROVA UN COMANDO</button>
+ <div class="mid" id="cmst"></div>
+ <div class="card"><p class="small">Premi e di' per esempio “ripeti”, “prossima”, “più lento” o “basta”. Qui vedi cosa ha capito il telefono. Il riconoscimento del parlato di solito passa dai server Apple, quindi serve la rete.</p>
+ <ol id="cmlog" class="small"></ol></div>
+</section>
+
+<div class="card small">
+ <b>Prima di partire</b>
+ <ol>
+  <li>Impostazioni → Schermo e luminosità → Blocco automatico → Mai (rimettilo dopo).</li>
+  <li>Telefono sul supporto, in carica, con quest'app aperta in primo piano.</li>
+  <li>Prova sia con CarPlay collegato sia scollegato (solo altoparlante del telefono) e confronta.</li>
+ </ol>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const NOTE=['Do','Re♭','Re','Mi♭','Mi','Fa','Fa♯','Sol','La♭','La','Si♭','Si'];
+const INT=['la fondamentale','la nona bemolle','la nona','la terza minore','la terza maggiore','la quarta','la quarta aumentata','la quinta','la sesta minore','la sesta','la settima minore','la settima maggiore'];
+const pcl=m=>((m%12)+12)%12, rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1)), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---- audio ---- */
+let AC,OUT,AN,STREAM,buf;
+function audio(){if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();OUT=AC.createGain();OUT.gain.value=.9;
+ const comp=AC.createDynamicsCompressor();OUT.connect(comp);comp.connect(AC.destination)}
+ if(AC.state==='suspended')AC.resume();return AC}
+function note(m,t,d,v=1){const f=440*2**((m-69)/12),g=AC.createGain();g.connect(OUT);const a=.16*v,tau=Math.min(3,Math.max(.6,1.7*(1+(60-m)/40)));
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(a,t+.006);g.gain.setTargetAtTime(0,t+.006,tau*1.5);g.gain.setTargetAtTime(0,t+d,.1);
+ [[1,1,1],[2,.5,1.5],[3,.28,2],[4,.15,2.6]].forEach(([k,amp,dk])=>{const o=AC.createOscillator(),og=AC.createGain();o.frequency.value=f*k;
+  og.gain.setValueAtTime(amp,t);og.gain.setTargetAtTime(0,t+.01,tau/dk);o.connect(og);og.connect(g);o.start(t);o.stop(t+d+.8)})}
+function play(notes,d){const t=AC.currentTime+.05;notes.forEach(m=>note(m,t,d));return sleep(d*1000+350)}
+function beep(){const t=AC.currentTime+.02,o=AC.createOscillator(),g=AC.createGain();o.frequency.value=1320;g.gain.setValueAtTime(.12,t);g.gain.setTargetAtTime(0,t+.06,.02);o.connect(g);g.connect(OUT);o.start(t);o.stop(t+.2);return sleep(260)}
+
+/* ---- microfono e intonazione ---- */
+async function mic(){if(AN)return;audio();
+ STREAM=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:$('#nsup').checked,autoGainControl:false}});
+ const src=AC.createMediaStreamSource(STREAM);AN=AC.createAnalyser();AN.fftSize=2048;src.connect(AN);buf=new Float32Array(AN.fftSize)}
+function micOff(){if(STREAM)STREAM.getTracks().forEach(t=>t.stop());STREAM=null;AN=null}
+function yin(x,sr){const W=x.length>>1,d=new Float32Array(W);
+ for(let t=1;t<W;t++){let s=0;for(let i=0;i<W;i++){const v=x[i]-x[i+t];s+=v*v}d[t]=s}
+ d[0]=1;let run=0;for(let t=1;t<W;t++){run+=d[t];d[t]=run?d[t]*t/run:1}
+ const tmin=Math.floor(sr/1000),tmax=Math.min(W-2,Math.floor(sr/65));let tau=-1;
+ for(let t=tmin;t<tmax;t++){if(d[t]<.15){while(t+1<tmax&&d[t+1]<d[t])t++;tau=t;break}}
+ if(tau<1)return null;const a=d[tau-1],b=d[tau],c=d[tau+1],den=a+c-2*b,p=den?tau+(a-c)/(2*den):tau;
+ return{f:sr/p,conf:1-b}}
+function sense(){if(!AN)return{lev:0,p:null};AN.getFloatTimeDomainData(buf);let s=0;for(const v of buf)s+=v*v;const rms=Math.sqrt(s/buf.length);
+ if(rms<.008)return{lev:rms,p:null};const r=yin(buf,AC.sampleRate);if(!r||r.f<65||r.f>1000)return{lev:rms,p:null};
+ return{lev:rms,p:69+12*Math.log2(r.f/440),f:r.f}}
+const nameOf=m=>NOTE[pcl(Math.round(m))];
+function showPitch(m,elN,elM){if(m==null){elN.textContent='–';return}const c=Math.round((m-Math.round(m))*100);elN.textContent=nameOf(m);elM.style.left=(50+c)+'%'}
+
+/* ---- voce ---- */
+let VOICE=null;
+function pickVoice(){const v=speechSynthesis.getVoices();VOICE=v.find(x=>/^it/i.test(x.lang))||null}
+if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function say(text){return new Promise(res=>{if(!('speechSynthesis' in window)){res();return}
+ const u=new SpeechSynthesisUtterance(text);u.lang='it-IT';if(VOICE)u.voice=VOICE;u.rate=1.02;
+ let done=false;const fin=()=>{if(!done){done=true;setTimeout(res,150)}};u.onend=fin;u.onerror=fin;
+ setTimeout(fin,1500+text.length*90);speechSynthesis.speak(u)})}
+
+/* ---- comandi vocali ---- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function hear(ms){return new Promise(res=>{if(!SR){res(null);return}let r;try{r=new SR()}catch(e){res(null);return}
+ r.lang='it-IT';r.interimResults=false;r.maxAlternatives=3;let out=null;
+ r.onresult=e=>{out=[...e.results[0]].map(a=>a.transcript.toLowerCase())};r.onerror=e=>{out=out||['(errore: '+e.error+')']};r.onend=()=>res(out);
+ try{r.start()}catch(e){res(null);return}setTimeout(()=>{try{r.stop()}catch(e){}},ms)})}
+function cmdOf(alts){if(!alts)return null;const t=alts.join(' ');
+ if(/ripet|ancora/.test(t))return'ripeti';if(/bast|stop|ferma|fine/.test(t))return'basta';if(/lent/.test(t))return'lento';if(/prossim|avanti|salta|vai/.test(t))return'prossima';return null}
+
+/* ---- esercizi ---- */
+const QUAL={maj7:[4,7,11],m7:[3,7,10],'7':[4,7,10],m7b5:[3,6,10]};
+const RLA={maj7:[4,7,11,14],m7:[3,7,10,14],'7':[4,9,10,14]};
+const WHAT={'3':'la terza','7':'la settima','1':'la fondamentale'};
+let RUN=false,slow=1,cnt={q:0,g:0,n:0},lastOct=48;
+function makeQ(){let ty=$('#extype').value;if(ty==='mix')ty=['3','7','1'][rnd(0,2)];
+ const root=rnd(0,11);let qual,notes,target;
+ if(ty==='1'){qual=['maj7','m7','7'][rnd(0,2)];const base=pcl(root)+48;let n=RLA[qual].map(x=>base+x);while(n[0]>58)n=n.map(x=>x-12);while(n[0]<50)n=n.map(x=>x+12);notes=n;target=root}
+ else{qual=ty==='3'?['maj7','m7','7','m7b5'][rnd(0,3)]:['maj7','m7','7'][rnd(0,2)];const b=36+root;notes=[b,b+12,...QUAL[qual].map(x=>b+12+x)];target=pcl(root+QUAL[qual][ty==='3'?0:2])}
+ return{ty,root,qual,notes,target}}
+async function listen(sec){const fr=[],t0=performance.now();
+ while(RUN&&performance.now()-t0<sec*1000){const s=sense();fr.push(s.p);showPitch(s.p,$('#exnote'),$('#exm'));
+  const seg=best(fr);if(seg&&seg.len>=22)break;await sleep(30)}
+ return best(fr)}
+function best(fr){let bestSeg=null,cur=[];const flush=()=>{if(cur.length){const s=[...cur].sort((a,b)=>a-b),med=s[s.length>>1];if(!bestSeg||cur.length>bestSeg.len)bestSeg={len:cur.length,m:med}}cur=[]};
+ for(const p of fr){if(p==null){flush();continue}if(cur.length&&Math.abs(p-cur[0])>.7)flush();cur.push(p)}flush();
+ return bestSeg&&bestSeg.len>=10?bestSeg:null}
+function logLine(html){const li=document.createElement('li');li.innerHTML=html;const L=$('#log');L.prepend(li);while(L.children.length>12)L.lastChild.remove()}
+function upd(){$('#cq').textContent=cnt.q;$('#cg').textContent=cnt.g;$('#cn').textContent=cnt.n}
+async function exLoop(){let q=makeQ(),first=true;
+ while(RUN){
+  $('#exst').textContent='Canta '+WHAT[q.ty];
+  await say((first?'Si parte. ':'')+'Canta '+WHAT[q.ty]+'.');first=false;if(!RUN)break;
+  await play(q.notes,2.2*slow);if(!RUN)break;
+  await beep();$('#exst').textContent='Ti ascolto…';
+  const seg=await listen(+$('#exsec').value);if(!RUN)break;
+  cnt.q++;const tg=q.target;let fb,ok=false,cue;
+  if(!seg){cnt.n++;fb='Non ho sentito una nota tenuta.';logLine(`<span class="n">non sentita</span> · ${WHAT[q.ty]} di ${NOTE[q.root]}${q.qual}`)}
+  else{const m=seg.m,near=Math.round(m),pc=pcl(near);lastOct=near-pcl(near);
+   if(pc===tg){ok=true;cnt.g++;const c=Math.round((m-near)*100);
+    fb=Math.abs(c)<=10?'Giusta e intonata.':`Giusta, ${Math.abs(c)} centesimi ${c>0?'crescente':'calante'}.`;
+    logLine(`<span class="y">giusta</span> ${c>0?'+':''}${c} cent · ${WHAT[q.ty]} di ${NOTE[q.root]}${q.qual}`)}
+   else{fb=`No, hai cantato ${INT[pcl(pc-q.root)]}.`;logLine(`<span class="n">sbagliata</span>: ${INT[pcl(pc-q.root)]} · ${WHAT[q.ty]} di ${NOTE[q.root]}${q.qual}`)}}
+  upd();$('#exst').textContent=fb;
+  if(ok)await say(fb);
+  else{await say(fb+' '+(WHAT[q.ty].charAt(0).toUpperCase()+WHAT[q.ty].slice(1))+' è questa.');if(!RUN)break;
+   let t=lastOct+tg;if(t<45)t+=12;if(t>67)t-=12;await play([t],1.4);await play([...q.notes,t],2)}
+  if(!RUN)break;
+  let next=true;
+  if($('#excmd').checked&&SR){$('#exst').textContent='Comando? (ripeti, prossima, più lento, basta)';const c=cmdOf(await hear(2500));
+   if(c==='basta'){await say('Va bene, mi fermo.');stopEx();break}
+   if(c==='ripeti'){next=false;await say('Ripeto.')}
+   if(c==='lento'){slow=Math.min(2,slow+.3);await say('Più lento.')}}
+  else await sleep(700);
+  if(next)q=makeQ()}}
+async function wake(){try{if(navigator.wakeLock)window._wl=await navigator.wakeLock.request('screen')}catch(e){}}
+function stopEx(){RUN=false;try{speechSynthesis.cancel()}catch(e){}$('#exgo').textContent='AVVIA';$('#exgo').classList.remove('stop');$('#exst').textContent='Fermo.'}
+$('#exgo').onclick=async()=>{if(RUN){stopEx();return}
+ audio();try{speechSynthesis.speak(new SpeechSynthesisUtterance(''))}catch(e){}
+ try{await mic()}catch(e){$('#exst').textContent='Microfono non disponibile: '+e.message;return}
+ RUN=true;slow=1;$('#exgo').textContent='STOP';$('#exgo').classList.add('stop');wake();exLoop()};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&RUN)wake()});
+
+/* ---- test microfono ---- */
+let TU=false;
+async function tuLoop(){while(TU){const s=sense();$('#tulev').style.width=Math.min(100,s.lev*400)+'%';
+ if(s.p!=null){showPitch(s.p,$('#tunote'),$('#tum'));const c=Math.round((s.p-Math.round(s.p))*100);$('#tuc').textContent=(c>0?'+':'')+c+' centesimi';$('#tuhz').textContent=s.f.toFixed(1)+' Hz'}
+ else{$('#tunote').textContent='–';$('#tuc').textContent='canta una nota tenuta'}
+ await sleep(40)}}
+$('#tugo').onclick=async()=>{if(TU){TU=false;$('#tugo').textContent='AVVIA MICROFONO';$('#tugo').classList.remove('stop');return}
+ try{await mic()}catch(e){$('#tuc').textContent='Microfono non disponibile: '+e.message;return}
+ TU=true;$('#tugo').textContent='FERMA';$('#tugo').classList.add('stop');tuLoop()};
+$('#nsup').onchange=async()=>{const was=!!AN;micOff();if(was){try{await mic()}catch(e){}}};
+
+/* ---- test comandi ---- */
+$('#cmgo').onclick=async()=>{if(!SR){$('#cmst').textContent='Il riconoscimento del parlato non è disponibile qui.';return}
+ $('#cmst').textContent='Parla ora…';const alts=await hear(3500),c=cmdOf(alts);
+ $('#cmst').innerHTML=alts?(c?`<span class="y">Comando: ${c}</span>`:'<span class="n">Nessun comando riconosciuto</span>'):'<span class="n">Non ho sentito nulla</span>';
+ const li=document.createElement('li');li.textContent=(alts?alts.join(' / '):'(niente)')+(c?' → '+c:'');$('#cmlog').prepend(li)};
+
+/* ---- schede ---- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+ document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t))});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+window.__t={yin};
+})();
+</script>
+</body>
+</html>
