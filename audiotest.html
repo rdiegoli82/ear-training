@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Test audio CarPlay</title>
+<style>
+body{margin:0;background:#0d1020;color:#eef0fa;font:17px/1.5 -apple-system,system-ui,sans-serif;padding:16px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+h1{font-size:22px}
+button{display:block;width:100%;min-height:64px;margin:10px 0;border-radius:14px;border:0;background:#7088ff;color:#fff;font:600 19px -apple-system,system-ui,sans-serif}
+button.alt{background:#ff7a5f}
+.small{color:#9aa2c4;font-size:14px}
+ol{padding-left:20px}#out li{margin:4px 0}
+</style>
+</head>
+<body>
+<h1>Test audio CarPlay</h1>
+<p class="small">Con il telefono collegato a CarPlay, premi i pulsanti in ordine e annota per ognuno se il suono esce dall'<b>auto</b> o dal <b>telefono</b>.</p>
+<p><b>Prima del microfono</b></p>
+<button id="a">1 · Accordo (Web Audio, come ora)</button>
+<button id="b">2 · Accordo (lettore audio)</button>
+<button id="c">3 · Voce sintetica</button>
+<p><b>Poi attiva il microfono e riprova</b></p>
+<button id="m" class="alt">4 · Attiva microfono</button>
+<button id="a2">5 · Accordo (Web Audio)</button>
+<button id="b2">6 · Accordo (lettore audio)</button>
+<button id="c2">7 · Voce sintetica</button>
+<button id="mo" class="alt">8 · Spegni microfono</button>
+<button id="b3">9 · Accordo (lettore audio) dopo il microfono</button>
+<p><b>Riconoscimento parole</b></p>
+<button id="s" class="alt">10 · Di' una parola</button>
+<button id="b4">11 · Accordo (lettore audio) dopo il riconoscimento</button>
+<ol id="out" class="small"></ol>
+<script>
+(()=>{
+const $=s=>document.querySelector(s),log=t=>{const li=document.createElement('li');li.textContent=t;$('#out').append(li)};
+const NOTES=[48,52,55,59,62];let AC,STREAM;
+function ac(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}
+function webAudio(){const a=ac(),t=a.currentTime+.05;NOTES.forEach(m=>{const o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.value=440*2**((m-69)/12);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.12,t+.01);g.gain.setTargetAtTime(0,t+.01,.7);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+2.2)})}
+// accordo scritto in un file WAV e suonato col normale lettore audio
+let URLW=null;
+function wavUrl(){if(URLW)return URLW;const sr=44100,n=sr*2|0,d=new Float32Array(n);
+ NOTES.forEach(m=>{const f=440*2**((m-69)/12);for(let i=0;i<n;i++){const t=i/sr;d[i]+=.14*Math.exp(-t*1.4)*(Math.sin(2*Math.PI*f*t)+.4*Math.sin(4*Math.PI*f*t)+.15*Math.sin(6*Math.PI*f*t))*Math.min(1,i/200)}});
+ const b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+ for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.max(-1,Math.min(1,d[i]))*32767,true);
+ URLW=URL.createObjectURL(new Blob([b],{type:'audio/wav'}));return URLW}
+const AUD=new Audio();AUD.playsInline=true;
+function element(){AUD.src=wavUrl();AUD.currentTime=0;AUD.play().catch(e=>log('lettore audio: errore '+e.message))}
+function voice(){const u=new SpeechSynthesisUtterance('Prova della voce: canta la settima.');u.lang='it-IT';u.rate=.85;speechSynthesis.cancel();speechSynthesis.speak(u)}
+const btn=(id,f,txt)=>$(id).onclick=()=>{f();log(txt+' → auto o telefono?')};
+btn('#a',webAudio,'1 Web Audio');btn('#b',element,'2 lettore audio');btn('#c',voice,'3 voce');
+btn('#a2',webAudio,'5 Web Audio con microfono');btn('#b2',element,'6 lettore audio con microfono');btn('#c2',voice,'7 voce con microfono');
+btn('#b3',element,'9 lettore audio dopo il microfono');btn('#b4',element,'11 lettore audio dopo il riconoscimento');
+$('#m').onclick=async()=>{try{STREAM=await navigator.mediaDevices.getUserMedia({audio:true});log('4 microfono attivo')}catch(e){log('4 microfono: errore '+e.message)}};
+$('#mo').onclick=()=>{if(STREAM)STREAM.getTracks().forEach(t=>t.stop());STREAM=null;log('8 microfono spento')};
+$('#s').onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){log('10 riconoscimento non disponibile');return}
+ const r=new SR();r.lang='it-IT';r.onresult=e=>log('10 sentito: '+e.results[0][0].transcript);r.onerror=e=>log('10 errore: '+e.error);r.onend=()=>log('10 fine riconoscimento');r.start();setTimeout(()=>{try{r.stop()}catch(e){}},4000)};
+})();
+</script>
+</body>
+</html>
